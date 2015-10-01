@@ -43,6 +43,3 @@ instance FromJSON Result
 instance ToJSON Result
 
 
-
-
-

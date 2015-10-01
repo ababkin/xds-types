@@ -24,39 +24,26 @@ import qualified Data.Vector      as V
 data Stats = Stats {
     fields     :: !(Vector Field)
   , numRecords :: !Int
-  } deriving Show
-{- instance ToJSON Stats -}
-instance FromJSON Stats where
-  parseJSON (Object v) = Stats 
-                       <$> v .: "fields"
-                       <*> v .: "numRecords"
-
-instance ToJSON Stats where
-  toJSON (Stats fields numRecords)    =
-    object  [
-              "fields"     .= fields
-            , "numRecords" .= numRecords
-            ]
+  } deriving (Generic, Show)
+instance ToJSON Stats
+instance FromJSON Stats
 
 newtype Histogram a = Histogram {unHistogram :: Map a Int} deriving Show
 instance Ord a => Monoid (Histogram a) where
   mempty = Histogram M.empty
   (Histogram !map1) `mappend` (Histogram !map2) =
-    Histogram $! M.unionWith (+) map1 map2
-    {- Histogram $! trim $ M.unionWith (+) map1 map2 -}
-    {- where -}
-      {- trim :: Ord a => Map a Int -> Map a Int -}
-      {- trim mp = M.filterWithKey tf mp -}
-        {- where -}
-          {- tf _ a = a >= cutoff -}
-          {- cutoff = go 10 vals -}
-          {- [> go :: (V.Unbox a, Ord a) => Int -> Vector a -> a <] -}
-          {- go :: (Ord a) => Int -> Vector a -> a -}
-          {- go !n !es | V.length es == 1  = V.head es -}
-                    {- | n < 2             = V.maximum es -}
-                    {- | otherwise         =  -}
-                        {- go (n-1) $! V.ifilter (\(!i) _ -> i /= V.maxIndex es) es -}
-          {- vals = V.fromList . M.elems $ mp -}
+    Histogram $! trim $ M.unionWith (+) map1 map2
+    where
+      trim :: Map a Int -> Map a Int
+      trim mp = M.filter ( >= cutoff) mp
+        where
+          cutoff = go 10 $ V.fromList $ M.elems mp
+          {- go :: (V.Unbox a, Ord a) => Int -> Vector a -> a -}
+          go !n !es | V.length es == 1  = V.head es
+                    | n < 2             = V.maximum es
+                    | otherwise         = 
+                        go (n-1) $! V.ifilter (\(!i) _ -> i /= V.maxIndex es) es
+
 
 instance ToJSON (Histogram Text) where
   toJSON (Histogram{unHistogram = m}) = toJSON m
